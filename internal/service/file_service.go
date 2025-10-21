@@ -70,7 +70,7 @@ func (s *FileService) SaveFile(file multipart.File, filename string) (string, er
 
 // ServeFile reads and returns file content after validating permissions
 // Requirements: 11.3, 11.4, 6.4
-func (s *FileService) ServeFile(filepath string, artworkID, requesterID uint, requesterRole string, artworkService ArtworkServiceInterface) ([]byte, string, error) {
+func (s *FileService) ServeFile(filePath string, artworkID, requesterID uint, requesterRole string, artworkService ArtworkServiceInterface) ([]byte, string, error) {
 	// Validate permissions by calling ArtworkService.GetArtwork
 	_, err := artworkService.GetArtwork(artworkID, requesterID, requesterRole)
 	if err != nil {
@@ -78,9 +78,9 @@ func (s *FileService) ServeFile(filepath string, artworkID, requesterID uint, re
 	}
 
 	// Construct full file path
-	fullPath := filepath
+	fullPath := filePath
 	if !filepath.IsAbs(fullPath) {
-		fullPath = filepath.Join(s.uploadPath, filepath)
+		fullPath = filepath.Join(s.uploadPath, filePath)
 	}
 
 	// Read file content
@@ -97,11 +97,11 @@ func (s *FileService) ServeFile(filepath string, artworkID, requesterID uint, re
 
 // DeleteFile deletes a physical file from the server
 // Requirements: 4.5
-func (s *FileService) DeleteFile(filepath string) error {
+func (s *FileService) DeleteFile(filePath string) error {
 	// Construct full file path
-	fullPath := filepath
+	fullPath := filePath
 	if !filepath.IsAbs(fullPath) {
-		fullPath = filepath.Join(s.uploadPath, filepath)
+		fullPath = filepath.Join(s.uploadPath, filePath)
 	}
 
 	// Delete the file
