@@ -93,6 +93,13 @@ func (h *ArtworkHandler) DeleteArtwork(c *gin.Context) {
 		return
 	}
 
+	// Get user role from context
+	userRole, exists := c.Get("user_role")
+	if !exists {
+		utils.Error(c, 401, "未授权")
+		return
+	}
+
 	// Get artwork ID from URL parameter
 	artworkIDStr := c.Param("id")
 	artworkID, err := strconv.ParseUint(artworkIDStr, 10, 32)
@@ -102,7 +109,7 @@ func (h *ArtworkHandler) DeleteArtwork(c *gin.Context) {
 	}
 
 	// Delete artwork
-	if err := h.artworkService.DeleteArtwork(uint(artworkID), userID.(uint)); err != nil {
+	if err := h.artworkService.DeleteArtwork(uint(artworkID), userID.(uint), userRole.(string)); err != nil {
 		if strings.Contains(err.Error(), "权限") {
 			utils.Error(c, 403, err.Error())
 		} else if strings.Contains(err.Error(), "不存在") {

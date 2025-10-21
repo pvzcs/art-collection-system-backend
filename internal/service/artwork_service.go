@@ -149,15 +149,15 @@ func (s *ArtworkService) GetReviewQueue(page, pageSize int) ([]models.Artwork, i
 
 // DeleteArtwork deletes an artwork and its associated file
 // Requirements: 4.5
-func (s *ArtworkService) DeleteArtwork(artworkID, userID uint) error {
+func (s *ArtworkService) DeleteArtwork(artworkID, requesterID uint, requesterRole string) error {
 	// Retrieve artwork
 	artwork, err := s.repo.GetByID(artworkID)
 	if err != nil {
 		return errors.New("artwork not found")
 	}
 
-	// Verify user is the owner
-	if artwork.UserID != userID {
+	// Verify requester is the owner or has admin role
+	if requesterRole != "admin" && artwork.UserID != requesterID {
 		return errors.New("permission denied: you can only delete your own artworks")
 	}
 
