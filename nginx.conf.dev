@@ -1,0 +1,57 @@
+# Nginx 开发环境配置 - 美术作品收集系统
+# 
+# 使用说明：
+# 1. 适用于本地开发环境，不包含 SSL 配置
+# 2. 将此文件复制到 /etc/nginx/sites-available/art-collection-dev
+# 3. 创建软链接: sudo ln -s /etc/nginx/sites-available/art-collection-dev /etc/nginx/sites-enabled/
+# 4. 测试配置: sudo nginx -t
+# 5. 重启 Nginx: sudo systemctl restart nginx
+
+# 上游服务器配置（Gin 应用）
+upstream art_collection_backend_dev {
+    server 127.0.0.1:8080;
+    keepalive 32;
+}
+
+# HTTP 服务器
+server {
+    listen 80;
+    server_name localhost;
+
+    # 日志配置
+    access_log /var/log/nginx/art-collection-dev-access.log;
+    error_log /var/log/nginx/art-collection-dev-error.log;
+
+    # 客户端请求大小限制
+    client_max_body_size 10M;
+
+    # Gzip 压缩
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript;
+
+    # 禁止直接访问 uploads 目录
+    location ~ ^/uploads/ {
+        deny all;
+        return 403;
+    }
+
+    # API 路由 - 反向代理到 Gin 应用
+    location /api/ {
+        proxy_pass http://art_collection_backend_dev;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    # 根路径
+    location / {
+        return 200 '{"message":"Art Collection System API - Development","version":"1.0"}';
+        add_header Content-Type application/json;
+    }
+}
