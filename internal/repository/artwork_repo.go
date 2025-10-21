@@ -2,6 +2,7 @@ package repository
 
 import (
 	"art-collection-system/internal/models"
+
 	"gorm.io/gorm"
 )
 
@@ -73,6 +74,34 @@ func (r *ArtworkRepository) GetByActivityID(activityID uint) ([]models.Artwork, 
 		return nil, err
 	}
 	return artworks, nil
+}
+
+// GetByActivityIDWithPagination retrieves artworks for a specific activity with pagination
+func (r *ArtworkRepository) GetByActivityIDWithPagination(activityID uint, page, pageSize int) ([]models.Artwork, int64, error) {
+	var artworks []models.Artwork
+	var total int64
+
+	// Count total artworks for this activity
+	if err := r.db.Model(&models.Artwork{}).Where("activity_id = ?", activityID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Calculate offset
+	offset := (page - 1) * pageSize
+
+	// Retrieve paginated artworks with user information
+	err := r.db.Preload("User").
+		Where("activity_id = ?", activityID).
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&artworks).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return artworks, total, nil
 }
 
 // GetReviewQueue retrieves artworks pending review with pagination

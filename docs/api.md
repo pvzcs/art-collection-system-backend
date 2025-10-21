@@ -919,6 +919,63 @@ JWT 令牌通过登录接口获取，有效期为 24 小时。
 
 ---
 
+#### 24. 获取活动的全部作品
+
+获取指定活动的所有作品列表（管理员专用）。
+
+**端点**: `GET /admin/activities/:id/artworks`
+
+**请求头**: 需要认证（管理员）
+
+**路径参数**:
+- `id`: 活动 ID
+
+**查询参数**:
+- `page`: 页码，默认 1
+- `page_size`: 每页数量，默认 20，最大 100
+
+**响应**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "artworks": [
+      {
+        "id": 1,
+        "activity_id": 1,
+        "user_id": 1,
+        "file_name": "artwork.jpg",
+        "file_path": "uploads/2025/10/artwork.jpg",
+        "review_status": "approved",
+        "created_at": "2025-10-21T10:00:00Z",
+        "updated_at": "2025-10-21T10:00:00Z",
+        "user": {
+          "id": 1,
+          "email": "user@example.com",
+          "nickname": "用户昵称"
+        }
+      }
+    ],
+    "total": 100,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
+**错误**:
+- `401`: 未授权
+- `403`: 权限不足（非管理员）
+- `404`: 活动不存在
+
+**使用场景**:
+- 查看某个活动的所有提交作品
+- 导出活动的作品清单
+- 统计活动参与情况
+
+---
+
 ## 使用示例
 
 ### 完整的用户注册和登录流程
@@ -994,6 +1051,10 @@ curl -X PUT http://localhost:8080/api/v1/admin/artworks/batch-review \
     "artwork_ids":[1,2,3,4,5],
     "approved":true
   }'
+
+# 获取活动的全部作品
+curl -X GET "http://localhost:8080/api/v1/admin/activities/1/artworks?page=1&page_size=20" \
+  -H "Authorization: Bearer <admin_token>"
 ```
 
 ## 速率限制

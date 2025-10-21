@@ -32,7 +32,7 @@ func (s *ArtworkService) UploadArtwork(userID, activityID uint, file multipart.F
 		return nil, err
 	}
 	if !isActive {
-		return nil, errors.New("activity is not active or has expired")
+		return nil, errors.New("活动不存在或已过期")
 	}
 
 	// Check upload limit
@@ -41,7 +41,7 @@ func (s *ArtworkService) UploadArtwork(userID, activityID uint, file multipart.F
 		return nil, err
 	}
 	if !canUpload {
-		return nil, errors.New("upload limit exceeded for this activity")
+		return nil, errors.New("超过了该活动的上传数量限制")
 	}
 
 	// Save file
@@ -188,4 +188,22 @@ func (s *ArtworkService) CheckUploadLimit(userID, activityID uint) (bool, error)
 
 	// Check if user has reached the limit
 	return count < int64(activity.MaxUploadsPerUser), nil
+}
+
+// GetArtworksByActivity retrieves all artworks for a specific activity (admin only)
+func (s *ArtworkService) GetArtworksByActivity(activityID uint, page, pageSize int) ([]models.Artwork, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+
+	// Verify activity exists
+	_, err := s.activityService.GetActivityByID(activityID)
+	if err != nil {
+		return nil, 0, errors.New("活动不存在")
+	}
+
+	return s.repo.GetByActivityIDWithPagination(activityID, page, pageSize)
 }

@@ -120,6 +120,7 @@ func setupAdminRoutes(
 		activities.POST("", activityHandler.CreateActivity)
 		activities.PUT("/:id", activityHandler.UpdateActivity)
 		activities.DELETE("/:id", activityHandler.DeleteActivity)
+		activities.GET("/:id/artworks", adminHandler.GetActivityArtworks)
 	}
 
 	// Artwork review

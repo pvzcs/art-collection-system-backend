@@ -246,3 +246,52 @@ func (h *AdminHandler) GetUserStatistics(c *gin.Context) {
 
 	utils.Success(c, statistics)
 }
+
+// GetActivityArtworks retrieves all artworks for a specific activity
+// GET /api/v1/admin/activities/:id/artworks
+func (h *AdminHandler) GetActivityArtworks(c *gin.Context) {
+	// Get activity ID from URL parameter
+	activityIDStr := c.Param("id")
+	activityID, err := strconv.ParseUint(activityIDStr, 10, 32)
+	if err != nil {
+		utils.Error(c, 400, "无效的活动ID")
+		return
+	}
+
+	// Get pagination parameters
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize <= 0 {
+		pageSize = 20
+	}
+
+	// Limit page size
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	// Get artworks for this activity
+	artworks, total, err := h.artworkService.GetArtworksByActivity(uint(activityID), page, pageSize)
+	if err != nil {
+		if strings.Contains(err.Error(), "不存在") {
+			utils.Error(c, 404, err.Error())
+		} else {
+			utils.Error(c, 500, "获取活动作品失败")
+		}
+		return
+	}
+
+	utils.Success(c, gin.H{
+		"artworks":  artworks,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
