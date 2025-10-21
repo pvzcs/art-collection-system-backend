@@ -134,7 +134,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Login
-	token, err := h.authService.Login(req.Email, req.Password)
+	token, user, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid email or password") {
 			utils.Error(c, 401, "邮箱或密码错误")
@@ -146,6 +146,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	utils.Success(c, gin.H{
 		"token": token,
+		"user": gin.H{
+			"id":       user.ID,
+			"email":    user.Email,
+			"nickname": user.Nickname,
+			"role":     user.Role,
+		},
 	})
 }
 

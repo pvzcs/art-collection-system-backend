@@ -106,30 +106,30 @@ func (s *AuthService) Register(email, code, password, nickname string) (*models.
 	return user, nil
 }
 
-// Login validates email and password, then generates a JWT token
-func (s *AuthService) Login(email, password string) (string, error) {
+// Login validates email and password, then generates a JWT token and returns user info
+func (s *AuthService) Login(email, password string) (string, *models.User, error) {
 	// Get user by email
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", errors.New("invalid email or password")
+			return "", nil, errors.New("invalid email or password")
 		}
-		return "", fmt.Errorf("failed to retrieve user: %w", err)
+		return "", nil, fmt.Errorf("failed to retrieve user: %w", err)
 	}
 
 	// Validate password
 	err = utils.ComparePassword(user.Password, password)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", nil, errors.New("invalid email or password")
 	}
 
 	// Generate JWT token
 	token, err := utils.GenerateToken(user.ID, user.Email, user.Role)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate token: %w", err)
+		return "", nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	return token, nil
+	return token, user, nil
 }
 
 // Logout adds the JWT token to Redis blacklist
