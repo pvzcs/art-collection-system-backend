@@ -1,0 +1,1228 @@
+openapi: 3.0.3
+info:
+  title: 美术作品收集系统 API
+  description: 美术作品收集系统 RESTful API 文档
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 开发环境
+
+tags:
+  - name: 认证
+    description: 用户认证相关接口
+  - name: 用户
+    description: 用户信息管理
+  - name: 活动
+    description: 活动管理
+  - name: 作品
+    description: 作品上传和管理
+  - name: 管理员
+    description: 管理员功能
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT 认证令牌
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: 错误描述
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        nickname:
+          type: string
+          example: 用户昵称
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Activity:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 活动名称
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        description:
+          type: string
+          example: 活动详情（Markdown 格式）
+        max_uploads_per_user:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Artwork:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        activity_id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        file_name:
+          type: string
+          example: artwork.jpg
+        review_status:
+          type: string
+          enum: [pending, approved]
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ArtworkWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/Artwork'
+        - type: object
+          properties:
+            activity:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                nickname:
+                  type: string
+                email:
+                  type: string
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+
+paths:
+  /auth/send-code:
+    post:
+      tags:
+        - 认证
+      summary: 发送验证码
+      description: 发送注册验证码到指定邮箱
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+      responses:
+        '200':
+          description: 验证码已发送
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 验证码已发送
+        '400':
+          description: 邮箱格式错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 发送频率过快
+
+  /auth/register:
+    post:
+      tags:
+        - 认证
+      summary: 用户注册
+      description: 使用邮箱验证码注册新用户
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+                - password
+                - nickname
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                code:
+                  type: string
+                  example: "123456"
+                  description: 6位验证码
+                password:
+                  type: string
+                  format: password
+                  example: Password123
+                  minLength: 8
+                nickname:
+                  type: string
+                  example: 用户昵称
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 注册成功
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: 参数验证失败、验证码错误或邮箱已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - 认证
+      summary: 用户登录
+      description: 使用邮箱和密码登录，获取 JWT 令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: Password123
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 登录成功
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          description: 邮箱或密码错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 登录尝试过于频繁
+
+  /auth/logout:
+    post:
+      tags:
+        - 认证
+      summary: 用户登出
+      description: 登出当前用户，将 JWT 令牌加入黑名单
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 登出成功
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/profile:
+    get:
+      tags:
+        - 用户
+      summary: 获取个人信息
+      description: 获取当前登录用户的个人信息
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - 用户
+      summary: 更新个人信息
+      description: 更新当前登录用户的昵称
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nickname
+              properties:
+                nickname:
+                  type: string
+                  example: 新昵称
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 更新成功
+        '400':
+          description: 参数验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权
+
+  /user/password:
+    put:
+      tags:
+        - 用户
+      summary: 修改密码
+      description: 修改当前登录用户的密码
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+              properties:
+                old_password:
+                  type: string
+                  format: password
+                  example: OldPassword123
+                new_password:
+                  type: string
+                  format: password
+                  example: NewPassword123
+                  minLength: 8
+      responses:
+        '200':
+          description: 密码修改成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 密码修改成功
+        '400':
+          description: 旧密码错误或新密码格式不正确
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权
+
+  /users/{id}/artworks:
+    get:
+      tags:
+        - 用户
+      summary: 获取用户作品列表
+      description: 获取指定用户的所有作品列表（个人空间）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 用户 ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: 每页数量
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    allOf:
+                      - type: object
+                        properties:
+                          artworks:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ArtworkWithRelations'
+                      - $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 用户不存在
+
+  /activities:
+    get:
+      tags:
+        - 活动
+      summary: 获取活动列表
+      description: 获取所有未删除的活动列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    allOf:
+                      - type: object
+                        properties:
+                          activities:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Activity'
+                      - $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: 未授权
+
+  /activities/{id}:
+    get:
+      tags:
+        - 活动
+      summary: 获取活动详情
+      description: 获取指定活动的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 活动 ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/Activity'
+        '401':
+          description: 未授权
+        '404':
+          description: 活动不存在或已删除
+
+  /admin/activities:
+    post:
+      tags:
+        - 管理员
+      summary: 创建活动
+      description: 创建新的活动（管理员）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: 活动名称
+                deadline:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: "2025-12-31T23:59:59Z"
+                description:
+                  type: string
+                  example: 活动详情（Markdown 格式）
+                max_uploads_per_user:
+                  type: integer
+                  default: 5
+                  example: 5
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 创建成功
+                  data:
+                    $ref: '#/components/schemas/Activity'
+        '400':
+          description: 参数验证失败
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足（非管理员）
+
+  /admin/activities/{id}:
+    put:
+      tags:
+        - 管理员
+      summary: 更新活动
+      description: 更新指定活动的信息（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 活动 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: 新活动名称
+                deadline:
+                  type: string
+                  format: date-time
+                  nullable: true
+                description:
+                  type: string
+                  example: 新活动详情
+                max_uploads_per_user:
+                  type: integer
+                  example: 10
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 更新成功
+        '400':
+          description: 参数验证失败
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 活动不存在
+
+    delete:
+      tags:
+        - 管理员
+      summary: 删除活动
+      description: 软删除指定活动（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 活动 ID
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 删除成功
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 活动不存在
+
+  /artworks:
+    post:
+      tags:
+        - 作品
+      summary: 上传作品
+      description: 上传美术作品到指定活动
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - activity_id
+                - file
+              properties:
+                activity_id:
+                  type: integer
+                  example: 1
+                  description: 活动 ID
+                file:
+                  type: string
+                  format: binary
+                  description: 作品文件（图片，最大 10MB）
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 上传成功
+                  data:
+                    $ref: '#/components/schemas/Artwork'
+        '400':
+          description: 参数错误、活动不存在或已过期、超过上传数量限制
+        '401':
+          description: 未授权
+        '429':
+          description: 上传频率过快
+
+  /artworks/{id}:
+    get:
+      tags:
+        - 作品
+      summary: 获取作品信息
+      description: 获取指定作品的详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 作品 ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/ArtworkWithRelations'
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 作品不存在
+
+    delete:
+      tags:
+        - 作品
+      summary: 删除作品
+      description: 删除自己上传的作品
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 作品 ID
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 删除成功
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 作品不存在
+
+  /artworks/{id}/image:
+    get:
+      tags:
+        - 作品
+      summary: 获取作品图片
+      description: 通过代理接口获取作品图片文件
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 作品 ID
+      responses:
+        '200':
+          description: 图片文件
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 作品或文件不存在
+
+  /admin/review-queue:
+    get:
+      tags:
+        - 管理员
+      summary: 获取审核队列
+      description: 获取所有待审核作品列表（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    allOf:
+                      - type: object
+                        properties:
+                          artworks:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ArtworkWithRelations'
+                      - $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+
+  /admin/artworks/{id}/review:
+    put:
+      tags:
+        - 管理员
+      summary: 审核作品
+      description: 审核单个作品，更新审核状态（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 作品 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approved
+              properties:
+                approved:
+                  type: boolean
+                  example: true
+                  description: true 表示通过审核，false 表示保持未审核状态
+      responses:
+        '200':
+          description: 审核成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 审核成功
+        '400':
+          description: 参数错误
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 作品不存在
+
+  /admin/artworks/batch-review:
+    put:
+      tags:
+        - 管理员
+      summary: 批量审核作品
+      description: 批量更新多个作品的审核状态（管理员）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - artwork_ids
+                - approved
+              properties:
+                artwork_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3, 4, 5]
+                  description: 作品 ID 数组
+                approved:
+                  type: boolean
+                  example: true
+                  description: true 表示通过审核，false 表示保持未审核状态
+      responses:
+        '200':
+          description: 批量审核成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 批量审核成功
+                  data:
+                    type: object
+                    properties:
+                      updated_count:
+                        type: integer
+                        example: 5
+        '400':
+          description: 参数错误
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+
+  /admin/users:
+    get:
+      tags:
+        - 管理员
+      summary: 获取用户列表
+      description: 获取所有用户列表（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    allOf:
+                      - type: object
+                        properties:
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/User'
+                      - $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+
+  /admin/users/{id}/role:
+    put:
+      tags:
+        - 管理员
+      summary: 更新用户角色
+      description: 更新指定用户的角色（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 用户 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: string
+                  enum: [user, admin]
+                  example: admin
+                  description: 用户角色
+      responses:
+        '200':
+          description: 角色更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: 角色更新成功
+        '400':
+          description: 参数错误
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 用户不存在
+
+  /admin/users/{id}/statistics:
+    get:
+      tags:
+        - 管理员
+      summary: 获取用户统计信息
+      description: 获取指定用户的统计信息（管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 用户 ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 0
+                  message:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: integer
+                        example: 1
+                      total_artworks:
+                        type: integer
+                        example: 15
+                      approved_artworks:
+                        type: integer
+                        example: 10
+                      pending_artworks:
+                        type: integer
+                        example: 5
+                      activities_participated:
+                        type: integer
+                        example: 3
+        '401':
+          description: 未授权
+        '403':
+          description: 权限不足
+        '404':
+          description: 用户不存在
