@@ -59,3 +59,51 @@ func (r *UserRepository) EmailExists(email string) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+// List retrieves users with pagination
+func (r *UserRepository) List(page, pageSize int) ([]models.User, int64, error) {
+	var users []models.User
+	var total int64
+
+	// Count total users
+	if err := r.db.Model(&models.User{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Calculate offset
+	offset := (page - 1) * pageSize
+
+	// Retrieve paginated users
+	err := r.db.Order("created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// CountArtworks counts the total number of artworks for a user
+func (r *UserRepository) CountArtworks(userID uint) (int64, error) {
+	var count int64
+	err := r.db.Table("artworks").Where("user_id = ?", userID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountArtworksByStatus counts artworks by review status for a user
+func (r *UserRepository) CountArtworksByStatus(userID uint, status string) (int64, error) {
+	var count int64
+	err := r.db.Table("artworks").
+		Where("user_id = ? AND review_status = ?", userID, status).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
