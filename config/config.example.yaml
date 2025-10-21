@@ -1,0 +1,37 @@
+server:
+  port: 8080
+  mode: debug # debug, release
+
+database:
+  mysql:
+    host: localhost
+    port: 3306
+    user: root
+    password: password
+    dbname: art_collection
+    max_idle_conns: 10
+    max_open_conns: 100
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 0
+
+jwt:
+  secret: your-secret-key-at-least-32-bytes-change-this-in-production
+  expire_hours: 24
+
+upload:
+  path: ./uploads
+  max_size: 10485760 # 10MB
+
+email:
+  smtp_host: smtp.example.com
+  smtp_port: 587
+  username: noreply@example.com
+  password: password
+  from: noreply@example.com
+
+log:
+  level: info # debug, info, warn, error
+  file: ./logs/app.log
