@@ -64,13 +64,17 @@ func main() {
 	utils.InitJWT(cfg.JWT.Secret)
 	logger.Info("JWT initialized")
 
+	// Initialize email service
+	emailService := utils.NewEmailService(&cfg.Email)
+	logger.Info("Email service initialized")
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	activityRepo := repository.NewActivityRepository(db)
 	artworkRepo := repository.NewArtworkRepository(db)
 
 	// Initialize services
-	authService := service.NewAuthService(userRepo, redisClient)
+	authService := service.NewAuthService(userRepo, redisClient, emailService)
 	userService := service.NewUserService(userRepo, artworkRepo)
 	activityService := service.NewActivityService(activityRepo)
 	fileService := service.NewFileService(cfg.Upload.Path)

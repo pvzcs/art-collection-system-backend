@@ -16,15 +16,17 @@ import (
 
 // AuthService handles authentication operations
 type AuthService struct {
-	userRepo *repository.UserRepository
-	redis    *redis.Client
+	userRepo     *repository.UserRepository
+	redis        *redis.Client
+	emailService *utils.EmailService
 }
 
 // NewAuthService creates a new authentication service instance
-func NewAuthService(userRepo *repository.UserRepository, redisClient *redis.Client) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, redisClient *redis.Client, emailService *utils.EmailService) *AuthService {
 	return &AuthService{
-		userRepo: userRepo,
-		redis:    redisClient,
+		userRepo:     userRepo,
+		redis:        redisClient,
+		emailService: emailService,
 	}
 }
 
@@ -42,9 +44,13 @@ func (s *AuthService) SendVerificationCode(email string) error {
 		return fmt.Errorf("failed to store verification code: %w", err)
 	}
 
-	// TODO: Send email with verification code
-	// For now, we'll just log it (in production, integrate with email service)
-	fmt.Printf("Verification code for %s: %s\n", email, code)
+	// Send email with verification code
+	err = s.emailService.SendVerificationCode(email, code)
+	if err != nil {
+		// Log error but don't fail the request - code is already stored in Redis
+		fmt.Printf("Warning: Failed to send email to %s: %v\n", email, err)
+		fmt.Printf("Verification code for %s: %s (email sending failed, showing in console)\n", email, code)
+	}
 
 	return nil
 }
