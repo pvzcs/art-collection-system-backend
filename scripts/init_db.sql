@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `artworks` (
 INSERT INTO `users` (`email`, `password`, `nickname`, `role`, `created_at`, `updated_at`)
 VALUES (
   'admin@example.com',
-  '$2a$12$p9iQ0R6DnMVB4U50Fk/45ejxqc.dl3XielMdYytWxu/f/R7BD/y1C',
+  '$2a$12$X.F08/AiWgoPND9WZhfAoOO8qN5rnkUock/JzD16LffbPh6o5/dGq',
   'System Administrator',
   'admin',
   NOW(),
